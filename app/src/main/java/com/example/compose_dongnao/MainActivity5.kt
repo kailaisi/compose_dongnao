@@ -23,6 +23,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.compose_dongnao.extension.MyColumnSample
 import com.example.compose_dongnao.ui.theme.Compose_dongnaoTheme
 
 class MainActivity5 : ComponentActivity() {
@@ -30,7 +31,7 @@ class MainActivity5 : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             Compose_dongnaoTheme() {
-                ScrollingList()
+                ConstraintLayoutContent2()
             }
         }
     }
