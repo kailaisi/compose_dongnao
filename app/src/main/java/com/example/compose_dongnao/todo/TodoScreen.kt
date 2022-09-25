@@ -4,15 +4,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.Button
-import androidx.compose.material.Icon
-import androidx.compose.material.LocalContentColor
-import androidx.compose.material.Text
+import androidx.compose.material.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.compose_dongnao.todo.utils.generateRandomTodoItem
 import kotlin.random.Random
@@ -21,17 +18,43 @@ import kotlin.random.Random
 fun TodoScreen(
     items: List<TodoItem>,
     onAddItem: (TodoItem) -> Unit,
-    onRemoveItem: (TodoItem) -> Unit
+    onRemoveItem: (TodoItem) -> Unit,
+    currentEdit: TodoItem?,
+    onStartEdit: (TodoItem) -> Unit,
+    onEditItemChange: (TodoItem) -> Unit,
+    onEditDone: (TodoItem) -> Unit,
 ) {
+    val isEdit = currentEdit != null
     Column {
-        AddTodoComponent(onAddClick = onAddItem)
+        TodoInputBackground(elevate = true) {
+            if (isEdit) {
+                Text(
+                    text = "Editing",
+                    modifier = Modifier
+                        .align(Alignment.CenterVertically)
+                        .padding(16.dp)
+                        .fillMaxWidth(),
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.h6
+                )
+            } else {
+                TodoItemEntryInput(onAddClick = onAddItem)
+            }
+        }
         LazyColumn(modifier = Modifier.weight(1f), contentPadding = PaddingValues(8.dp)) {
             items(items) {
-                ToDoRow(
-                    todoItem = it,
-                    modifier = Modifier.fillParentMaxWidth(),
-                    onItemClick = onRemoveItem
-                )
+                if (it.task != currentEdit?.task) {
+                    ToDoRow(
+                        todoItem = it,
+                        modifier = Modifier.fillParentMaxWidth(),
+                        onItemClick = onStartEdit
+                    )
+                } else {
+                    TodoItemEditInline(todoItem = it,
+                        onEditChanged = onEditItemChange,
+                        onEditDone = { onEditDone(it) },
+                        onRemoveItem = { onRemoveItem(it) })
+                }
             }
         }
         Button(

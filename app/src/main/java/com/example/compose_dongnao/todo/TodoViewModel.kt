@@ -1,18 +1,38 @@
 package com.example.compose_dongnao.todo
 
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 
 class TodoViewModel : ViewModel() {
-    private val _todoItems = MutableLiveData(listOf<TodoItem>())
-    val todoItems: LiveData<List<TodoItem>> = _todoItems
+    var todoItems = mutableStateListOf<TodoItem>()
+        private set
+
+    private var currentEditPosition by mutableStateOf(-1)
+
+    val currentEditItem get() = todoItems.getOrNull(currentEditPosition)
 
     fun addItem(todoItem: TodoItem) {
-        _todoItems.postValue(_todoItems.value!! + listOf(todoItem))
+        todoItems.add(todoItem)
     }
 
     fun removeItem(todoItem: TodoItem) {
-        _todoItems.postValue(_todoItems.value!!.filter { it != todoItem }.toMutableList())
+        todoItems.remove(todoItem)
+        onEditDone()
+    }
+
+    fun onEditDone() {
+        currentEditPosition = -1
+    }
+
+    fun onEditSelect(todoItem: TodoItem) {
+        currentEditPosition = todoItems.indexOf(todoItem)
+    }
+
+    // 编辑过程中重新赋值
+    fun onEditItemChange(todoItem: TodoItem) {
+        todoItems[currentEditPosition] = todoItem
     }
 }

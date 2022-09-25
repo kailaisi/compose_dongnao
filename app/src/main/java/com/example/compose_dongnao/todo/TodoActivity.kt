@@ -8,8 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
 import com.example.compose_dongnao.todo.ui.theme.Compose_JetpackComposeTheme
 
@@ -30,12 +28,15 @@ class TodoActivity : ComponentActivity() {
 
     @Composable
     private fun TodoActivityScreen() {
-        val items: List<TodoItem> by viewModel.todoItems.observeAsState(listOf())
-        TodoScreen(
-            items,
-            onAddItem = { viewModel.addItem(it) },
-            onRemoveItem = { viewModel.removeItem(it) }
-        )
+        val items =
+            TodoScreen(
+                items = viewModel.todoItems,
+                onAddItem = { viewModel.addItem(it) },
+                onRemoveItem = { viewModel.removeItem(it) },
+                onEditDone = { viewModel.onEditDone() },
+                currentEdit = viewModel.currentEditItem,
+                onEditItemChange = viewModel::onEditItemChange,
+                onStartEdit = viewModel::onEditSelect
+            )
     }
-
 }
