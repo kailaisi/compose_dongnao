@@ -16,8 +16,9 @@
 
 package com.example.compose_dongnao.animation.ui.home
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.splineBasedDecay
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.animation.core.RepeatMode.Restart
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -103,6 +104,8 @@ import com.example.compose_dongnao.animation.ui.home.TabPage.Work
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.absoluteValue
+import kotlin.math.roundToInt
 
 private enum class TabPage {
     Home, Work
@@ -159,7 +162,10 @@ fun Home() {
 
     // The background color. The value is changed by the current tab.
     // TODO 1: Animate this color change.
-    val backgroundColor = if (tabPage == TabPage.Home) Purple100 else Green300
+    val backgroundColor by animateColorAsState(
+        targetValue = if (tabPage == TabPage.Home) Purple100 else Green300,
+        animationSpec = TweenSpec(200)
+    )
 
     // The coroutine scope for event handlers calling suspend functions.
     val coroutineScope = rememberCoroutineScope()
@@ -271,8 +277,7 @@ private fun HomeFloatingActionButton(
                 contentDescription = null
             )
             // Toggle the visibility of the content with animation.
-            // TODO 2-1: Animate this visibility change.
-            if (extended) {
+            AnimatedVisibility(visible = extended) {
                 Text(
                     text = stringResource(R.string.edit),
                     modifier = Modifier
@@ -291,7 +296,17 @@ private fun EditMessage(shown: Boolean) {
     // TODO 2-2: The message should slide down from the top on appearance and slide up on
     //           disappearance.
     AnimatedVisibility(
-        visible = shown
+        visible = shown,
+        enter = slideInVertically(
+            animationSpec = tween(durationMillis = 100, easing = LinearOutSlowInEasing),
+            initialOffsetY = { fullHeight ->
+                -fullHeight
+            }),
+        exit = slideOutVertically(
+            animationSpec = tween(durationMillis = 100, easing = FastOutLinearInEasing),
+            targetOffsetY = { fullHeight ->
+                -fullHeight
+            })
     ) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -365,6 +380,7 @@ private fun TopicRow(topic: String, expanded: Boolean, onClick: () -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
+                .animateContentSize()
         ) {
             Row {
                 Icon(
@@ -444,9 +460,31 @@ private fun HomeTabIndicator(
     tabPage: TabPage
 ) {
     // TODO 4: Animate these value changes.
-    val indicatorLeft = tabPositions[tabPage.ordinal].left
-    val indicatorRight = tabPositions[tabPage.ordinal].right
-    val color = if (tabPage == TabPage.Home) Purple700 else Green800
+//    val indicatorLeft = tabPositions[tabPage.ordinal].left
+//    val indicatorRight = tabPositions[tabPage.ordinal].right
+    val transition = updateTransition(targetState = tabPage, label = "Tab indicator")
+    val indicatorLeft by transition.animateDp(label = "left", transitionSpec = {
+        if (TabPage.Home isTransitioningTo Work) {
+            spring(stiffness = Spring.StiffnessVeryLow)
+        } else {
+            spring(stiffness = Spring.StiffnessMedium)
+        }
+    }) { page ->
+        // ordinal获取的是序号，获取当前tab的左侧位置信息
+        tabPositions[page.ordinal].left
+    }
+    val indicatorRight by transition.animateDp(label = "left", transitionSpec = {
+        if (TabPage.Home isTransitioningTo Work) {
+            spring(stiffness = Spring.StiffnessMedium)
+        } else {
+            spring(stiffness = Spring.StiffnessVeryLow)
+        }
+    }) { page ->
+        tabPositions[page.ordinal].right
+    }
+    val color by transition.animateColor(label = "color") { page ->
+        if (page == TabPage.Home) Purple700 else Green800
+    }
     Box(
         Modifier
             .fillMaxSize()
@@ -532,7 +570,18 @@ private fun WeatherRow(
 @Composable
 private fun LoadingRow() {
     // TODO 5: Animate this value between 0f and 1f, then back to 0f repeatedly.
-    val alpha = 1f
+    val transition = rememberInfiniteTransition()
+    val alpha by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = keyframes {
+                durationMillis = 1000
+                0.7f at 500
+            },
+            repeatMode = Restart
+        )
+    )
     Row(
         modifier = Modifier
             .heightIn(min = 64.dp)
@@ -596,6 +645,9 @@ private fun Modifier.swipeToDismiss(
     onDismissed: () -> Unit
 ): Modifier = composed {
     // TODO 6-1: Create an Animatable instance for the offset of the swiped element.
+    val offset = remember {
+        Animatable(0f)
+    }
     pointerInput(Unit) {
         // Used to calculate a settling position of a fling animation.
         val decay = splineBasedDecay<Float>(this)
@@ -606,11 +658,16 @@ private fun Modifier.swipeToDismiss(
                 val pointerId = awaitPointerEventScope { awaitFirstDown().id }
                 // TODO 6-2: Touch detected; the animation should be stopped.
                 // Prepare for drag events and record velocity of a fling.
+                offset.stop()
                 val velocityTracker = VelocityTracker()
                 // Wait for drag events.
                 awaitPointerEventScope {
                     horizontalDrag(pointerId) { change ->
                         // TODO 6-3: Apply the drag change to the Animatable offset.
+                        val horizontalDragOffset = offset.value + change.positionChange().x
+                        launch {
+                            offset.snapTo(horizontalDragOffset)
+                        }
                         // Record the velocity of the drag.
                         velocityTracker.addPosition(change.uptimeMillis, change.position)
                         // Consume the gesture event, not passed to external
@@ -621,18 +678,30 @@ private fun Modifier.swipeToDismiss(
                 val velocity = velocityTracker.calculateVelocity().x
                 // TODO 6-4: Calculate the eventual position where the fling should settle
                 //           based on the current offset value and velocity
+                val targetValue = decay.calculateTargetValue(offset.value, velocity)
+
                 // TODO 6-5: Set the upper and lower bounds so that the animation stops when it
                 //           reaches the edge.
+                offset.updateBounds(
+                    lowerBound = -size.width.toFloat(),
+                    upperBound = size.width.toFloat()
+                )
                 launch {
                     // TODO 6-6: Slide back the element if the settling position does not go beyond
                     //           the size of the element. Remove the element if it does.
+                    if (targetValue.absoluteValue <= size.width) {
+                        offset.animateTo(targetValue = 0f, initialVelocity = velocity)
+                    } else {
+                        offset.animateDecay(velocity, decay)
+                        onDismissed()
+                    }
                 }
             }
         }
     }
         .offset {
             // TODO 6-7: Use the animating offset value here.
-            IntOffset(0, 0)
+            IntOffset(offset.value.roundToInt(), 0)
         }
 }
 
